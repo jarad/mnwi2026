@@ -92,7 +92,7 @@ X <- rbind(
   cbind(X_blue, -X_red)
 )
 
-# Fit model
+# Fit linear regression model without an intercept
 m <- lm(Y ~ 0 + X)
 # summary(m)
 
