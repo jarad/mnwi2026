@@ -23,12 +23,15 @@ plot_ratings <- function(d) {
     labs(
       x = "Rating",
       y = "Team",
-      title = "FRC MNWI 2026 - Qualification"
-    )
+      title = "FRC IACF 2026 - Qualification"
+    ) |>
+      geom_hline(yintercept = "3928", color = "orange")
 }
 
-# Minnesota Bluff Country Regional
-tmp <- read_csv("data/iacf2026.csv")
+# Iowa Regional
+tmp <- read_csv("data/iacf2026.csv") |>
+  filter(!is.na(`Red Final`))
+
 # WonAuto was manually entered
 tail(tmp$Match, 1) # last match in these data
 
@@ -44,7 +47,7 @@ teams <- tmp |>
 n_teams <- length(teams)
 
 # Create factor for all teams
-mnwi2026 <- tmp |>
+iacf2026 <- tmp |>
   mutate(
     `Red 1` = factor(`Red 1`, levels = teams),
     `Red 2` = factor(`Red 2`, levels = teams),
@@ -54,20 +57,20 @@ mnwi2026 <- tmp |>
     `Blue 3` = factor(`Blue 3`, levels = teams)
   )
 
-# mnwi2026 |> datatable(filter = "top", rownames = FALSE)
+# iacf2026 |> datatable(filter = "top", rownames = FALSE)
 
 # Construct model matrices
 # row is matches and columns are teams
 # cell is 1 if that team was on that alliance in that match and 0 otherwise
 # e.g. X_red[23, 33] = 1 means team 33 was on red alliance in match 23
 # Teams[33] gives you the FRC number for that team
-X_red <- construct_matrix(mnwi2026, "Red 1", n_teams) +
-  construct_matrix(mnwi2026, "Red 2", n_teams) +
-  construct_matrix(mnwi2026, "Red 3", n_teams)
+X_red <- construct_matrix(iacf2026, "Red 1", n_teams) +
+  construct_matrix(iacf2026, "Red 2", n_teams) +
+  construct_matrix(iacf2026, "Red 3", n_teams)
 
-X_blue <- construct_matrix(mnwi2026, "Blue 1", n_teams) +
-  construct_matrix(mnwi2026, "Blue 2", n_teams) +
-  construct_matrix(mnwi2026, "Blue 3", n_teams)
+X_blue <- construct_matrix(iacf2026, "Blue 1", n_teams) +
+  construct_matrix(iacf2026, "Blue 2", n_teams) +
+  construct_matrix(iacf2026, "Blue 3", n_teams)
 
 # Some data checks
 stopifnot(rowSums(X_red) == 3)
@@ -83,7 +86,7 @@ stopifnot(all(tmp$WonAuto %in% c("Red", "Blue")))
 #
 ################################################################################
 
-Y <- c(mnwi2026$`Red Final`, mnwi2026$`Blue Final`)
+Y <- c(iacf2026$`Red Final`, iacf2026$`Blue Final`)
 
 # negative sign is so that better defense ability is a more positive number
 X <- rbind(
@@ -92,11 +95,12 @@ X <- rbind(
 )
 
 # Fit linear regression model without an intercept
+X <- X[, 1:(ncol(X) / 2)] # OPR-only
 m <- lm(Y ~ 0 + X)
-# summary(m)
+summary(m)
 
 #
-mnwi2026_offense_defense <- data.frame(
+iacf2026_offense_defense <- data.frame(
   team = rep(teams, times = 2),
   type = rep(c("offense", "defense"), each = length(teams)),
   rating = coef(m)
@@ -116,7 +120,7 @@ mnwi2026_offense_defense <- data.frame(
   ) |>
   arrange(desc(team))
 
-plot_ratings(mnwi2026_offense_defense)
+plot_ratings(iacf2026_offense_defense)
 
 
 ################################################################################
@@ -148,7 +152,7 @@ coef(m2)[1]
 confint(m2)[1, ] # uncertainty on this effect
 
 #
-mnwi2026_offense_defense_wonauto <- data.frame(
+iacf2026_offense_defense_wonauto <- data.frame(
   team = rep(teams, times = 2),
   type = rep(c("offense", "defense"), each = length(teams)),
   rating = coef(m2)[-1] # remove wonauto effect
@@ -168,7 +172,7 @@ mnwi2026_offense_defense_wonauto <- data.frame(
   arrange(desc(team))
 
 
-plot_ratings(mnwi2026_offense_defense_wonauto) +
+plot_ratings(iacf2026_offense_defense_wonauto) +
   labs(subtitle = "after accounting for wonauto effect")
 
 ################################################################################
